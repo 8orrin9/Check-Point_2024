@@ -1,0 +1,199 @@
+Backpropagation:
+
+- Add layer:
+
+	class AddLayer:
+
+		def __init__(self):
+			pass
+
+		def forward(self, x, y):
+			out = x + y
+			return out
+
+		def backward(self, dout):
+			dx = dout * 1
+			dy = dout * 1
+			return dx, dy
+
+- Multi layer:
+
+	class MulLayer:
+
+		def __init(self):
+			self.x = None
+			self.y = None
+
+		def forward(self, x, y):
+			self.x = x
+			self.y = y
+			out = x * y
+			return out
+
+		def backward(self, dout):
+			dx = dout * self.y
+			dy = dout * self.x
+			return dx, dy
+
+- Buying 2 apples and 3 oranges:
+
+	apple = 100
+	apple_num = 2
+	orange = 150
+	orange_num = 3
+	tax = 1.1
+
+	mul_apple_layer = MulLayer()
+	mul_orange_layer = MulLayer()
+	add_apple_orange_layer = AddLayer()
+	mul_tax_layer = MulLayer()
+
+	# forward
+	apple_price = mul_apple_layer.forward(apple, apple_num)
+	orange_price = mul_orange_layer.forward(orange, orange_num)
+	all_price = add_apple_orange_layer.forward(apple_price, orange_price)
+	price = mul_tax_layer.forward(all_price, tax)
+
+	# backward
+	dprice = 1
+	dall_price, dtax = mul_tax_layer.backward(dprice)
+	dapple_price, dorange_price = add_apple_orange_layer.backward(dall_price)
+	dorange, dorange_num = mul_orange_layer.backward(dorange_price)
+	dapple, dapple_num = mul_apple_layer.backward(dapple_price)
+
+	print('price:', int(price))
+	print('dApple:', dapple)
+	print('dApple_num:', int(dapple_num))
+	print('dOrange:', dorange)
+	print('dOrange_num:', int(dorange_num))
+	print('dTax:', dtax)
+
+
+
+Backpropagation with two layers Code example:
+
+	from common.layers import *
+	from common.gradient import numerical_gradient
+	from collections import OrderedDict
+
+	class TwoLayerNet:
+
+		def __init__(self, input_size, hidden_size, output_size, weight_init_std = 0.01):
+
+			self.params = {}
+			self.params['W1'] = weight_init_std * np.random.randn(input_size, hidden_size)
+			self.params['b1'] = np.zeros(hidden_size)
+			self.params['W2'] = weight_init_std * np.random.randn(hidden_size, output_size)
+			self.params['b2'] = np.zeros(output_size)
+
+			self.layers = OrderedDict()
+			self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
+			self.layers['Relu1'] = Relu()
+			self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+			self.lastLayer = SoftmaxWithLoss()
+
+			def predict(self, x):
+				for layer in self.layers.values():
+					x = layer.forward()
+					return x
+
+			def loss(self, x, t):
+				y = self.predict(x)
+				y = np.argmax(Y, axis = 1)
+				if t.ndim != 1: t = np.argmax(t, axis = 1)
+				accuracy = np.sum(y == t) / float(x.shape[0])
+				return accuracy
+
+			def gradient(self, x, t):
+
+				# forward				
+				self.loss(x, t)
+				
+				# backward
+				dout = 1
+				dout = self.lastLayer.backward(dout)
+				layers = list(self.layers.values())
+				layers.reverse()
+				for layer in layers:
+					dout = layer.backward(dout)
+
+				grads = {}
+				grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+				grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+				return grads
+
+	from dataset.mnist import load_mnist
+	(x_train, t_train), (x_test, t_test) = load_mnist(normalize = True, one_hot_label = True)
+
+	iters_num = 10000
+	train_size = x_train.shape[0]
+	batch_size = 100
+	learning_rate = 0.1
+
+	train_loss_list = []
+	train_acc_list = []
+	test_acc_list = []
+	iter_per_epoch = max(train_size / batch_size, 1)
+
+	network = TwoLayerNet(input_size = 784, hidden_size = 50, output_size = 10)
+
+	for i in range(iters_num):
+
+		batch_mask = np.random.choice(train_size, batch_size)
+		x_batch = x_train[batch_mask]
+		t_batch = t_train[batch_mask]
+
+		grad = network.gradient(x_batch, t_batch)
+
+		for key in ('W1', 'b1', 'W2', 'b2'):
+			network.params[key] -= learning_rate * grad[key]
+
+		loss = network.loss(x_batch, t_batch)
+		train_loss_list.append(loss)
+
+		if i % iter_per_epoch == 0:
+			train_acc = network.accuracy(x_train, t_train)
+			test_acc = network.accuracy(x_test, t_test)
+			train_acc_list.append(train_acc)
+			test_acc_list.append(test_acc)
+			print(f'<{int(i//iter_per_epoch):03}>train acc: {train_acc: .3f}, test acc: {test_acc: .3f}')
+
+
+
+===
+
+Optimizer:
+
+- Stocastic GD.
+
+- Momentum.
+
+- AdaGrad.:
+
+- Adam.:
+
+
+
+===
+
+Vanishing Gradient / Exploding Gradient - Xavier / He / Batch Normalization.:
+
+; 역전파 알고리즘에서, 신경망을 훈련시킬 때 기울기는 입력 레이어로 거꾸로 이동하며 전달된다. 이 과정에서 중간 레이어들을 거치며 기울기가 여러 번 곱해지게 된다. 이 과정에서 기울기가 매우 작아지거나 커질 수 있다.
+; Batch Normalization이나 초기값 설정(Sigmoid, tanh의 경우 Xavier 초기값을, ReLU의 경우 He 초기값을 설정한다.)을 통해 해결할 수 있다.
+
+- Vanishing Gradient.:
+; 기울기가 너무 작아져 소실되면, 네트워크의 하위 레이어들은 거의 업데이트되지 않는다. 즉, 하위 레이어들이 신경망의 학습에 기여하지 못한다는 것이다.
+
+- Exploding Gradient.:
+; 기울기가 너무 커지면 가중치 값이 매우 커져 수렴하지 못한다.
+
+
+
+Dropout: 각 층에서 일부 뉴런을 임의로 삭제하여 신호가 전달되는 것을 고의로 차단한 채 학습한다. 오버피팅을 방지한다.
+
+L2 Regularization: L2 규제를 통해 가중치를 강제 감소시키는 방법도 있다.
+
+
+
+
+
